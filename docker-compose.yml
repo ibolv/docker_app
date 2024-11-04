@@ -1,0 +1,64 @@
+version: "3.7"
+services:
+  realworld:
+    build: ./back
+    environment:
+      - DB_URL=jdbc:postgresql://db:5432/postgres
+      - DB_USER=root
+      - DB_PASS=root
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backnetwork
+    
+
+  db:
+    image: postgres:16.1
+    restart: always
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+    ports:
+      - 23233:5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - backnetwork
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:latest
+    ports:
+     - "9500:9500"
+    volumes:
+      - ./nginxfront/app.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - backnetwork
+      - frontnetwork
+
+  client:
+    build: ./front
+    container_name: client_frontend
+    volumes:
+      - ./front:/app
+    networks:
+      - frontnetwork
+
+networks:
+  backnetwork:
+    driver: bridge
+  frontnetwork:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/ivan/pgdata
+      o: bind
